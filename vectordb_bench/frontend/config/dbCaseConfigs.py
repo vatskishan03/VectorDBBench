@@ -2970,6 +2970,86 @@ PolarDBConfig = [
     CaseConfigParamInput_SQType_PolarDB,
 ]
 
+CaseConfigParamInput_M_KyroDB = CaseConfigInput(
+    label=CaseConfigParamType.m,
+    displayLabel="m",
+    inputType=InputType.Number,
+    inputConfig={
+        "min": 4,
+        "max": 128,
+        "value": 16,
+    },
+    inputHelp="KyroDB HNSW m. The adapter validates the server-side value before running the benchmark.",
+)
+
+CaseConfigParamInput_EFConstruction_KyroDB = CaseConfigInput(
+    label=CaseConfigParamType.ef_construction,
+    displayLabel="ef_construction",
+    inputType=InputType.Number,
+    inputConfig={
+        "min": 8,
+        "max": 4096,
+        "value": 200,
+    },
+    inputHelp="KyroDB HNSW ef_construction. The adapter validates the server-side value before running.",
+)
+
+CaseConfigParamInput_EFSearch_KyroDB = CaseConfigInput(
+    label=CaseConfigParamType.ef_search,
+    displayLabel="ef_search",
+    inputType=InputType.Number,
+    inputConfig={
+        "min": 0,
+        "max": 4096,
+        "value": 128,
+    },
+    inputHelp="Per-query ef_search override. Set to 0 to use the server default.",
+)
+
+CaseConfigParamInput_IngestRPC_Load_KyroDB = CaseConfigInput(
+    label=CaseConfigParamType.ingest_rpc,
+    displayLabel="ingest_rpc",
+    inputType=InputType.Option,
+    inputConfig={
+        "options": [
+            "bulk_load_hnsw",
+            "bulk_insert",
+            "insert",
+        ],
+        "value": "bulk_load_hnsw",
+    },
+    inputHelp="KyroDB ingest RPC. Use bulk_load_hnsw for standard offline load/performance cases.",
+)
+
+CaseConfigParamInput_IngestRPC_Streaming_KyroDB = CaseConfigInput(
+    label=CaseConfigParamType.ingest_rpc,
+    displayLabel="ingest_rpc",
+    inputType=InputType.Option,
+    inputConfig={
+        "options": [
+            "bulk_insert",
+            "insert",
+            "bulk_load_hnsw",
+        ],
+        "value": "bulk_insert",
+    },
+    inputHelp="KyroDB ingest RPC for streaming cases. bulk_insert is the honest default for live-write benchmarking.",
+)
+
+KyroDBLoadConfig = [
+    CaseConfigParamInput_M_KyroDB,
+    CaseConfigParamInput_EFConstruction_KyroDB,
+    CaseConfigParamInput_EFSearch_KyroDB,
+    CaseConfigParamInput_IngestRPC_Load_KyroDB,
+]
+
+KyroDBStreamingConfig = [
+    CaseConfigParamInput_M_KyroDB,
+    CaseConfigParamInput_EFConstruction_KyroDB,
+    CaseConfigParamInput_EFSearch_KyroDB,
+    CaseConfigParamInput_IngestRPC_Streaming_KyroDB,
+]
+
 # Map DB to config
 CASE_CONFIG_MAP = {
     DB.Milvus: {
@@ -3064,6 +3144,11 @@ CASE_CONFIG_MAP = {
         CaseLabel.Load: PolarDBConfig,
         CaseLabel.Performance: PolarDBConfig,
     },
+    DB.KyroDB: {
+        CaseLabel.Load: KyroDBLoadConfig,
+        CaseLabel.Performance: KyroDBLoadConfig,
+        CaseLabel.Streaming: KyroDBStreamingConfig,
+    },
 }
 
 
@@ -3072,6 +3157,8 @@ def get_case_config_inputs(db: DB, case_label: CaseLabel) -> list[CaseConfigInpu
         return []
     if case_label == CaseLabel.Load:
         return CASE_CONFIG_MAP[db][CaseLabel.Load]
-    elif case_label == CaseLabel.Performance or case_label == CaseLabel.Streaming:
+    if case_label == CaseLabel.Performance:
         return CASE_CONFIG_MAP[db][CaseLabel.Performance]
+    if case_label == CaseLabel.Streaming:
+        return CASE_CONFIG_MAP[db].get(CaseLabel.Streaming, CASE_CONFIG_MAP[db][CaseLabel.Performance])
     return []

@@ -159,6 +159,7 @@ class CaseConfigParamType(Enum):
     insert_workers = "insert_workers"
     post_load_index = "post_load_index"
     pq_nbits = "pq_nbits"
+    ingest_rpc = "ingest_rpc"
 
     # Lindorm parameters
     efSearch = "efSearch"

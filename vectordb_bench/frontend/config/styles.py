@@ -85,6 +85,7 @@ COLOR_MAP = {
     DB.ElasticCloud.value: "#04D6C8",
     DB.Pinecone.value: "#6610F2",
     DB.QdrantCloud.value: "#D91AD9",
+    DB.KyroDB.value: "#16806D",
     DB.WeaviateCloud.value: "#20C997",
     DB.PgVector.value: "#4C779A",
     DB.Redis.value: "#0D6EFD",

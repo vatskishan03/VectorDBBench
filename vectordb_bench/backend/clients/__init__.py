@@ -28,6 +28,7 @@ class DB(Enum):
     ElasticCloud = "ElasticCloud"
     QdrantCloud = "QdrantCloud"
     QdrantLocal = "QdrantLocal"
+    KyroDB = "KyroDB"
     WeaviateCloud = "WeaviateCloud"
     PgVector = "PgVector"
     PgVectoRS = "PgVectoRS"
@@ -93,6 +94,11 @@ class DB(Enum):
             from .qdrant_local.qdrant_local import QdrantLocal
 
             return QdrantLocal
+
+        if self == DB.KyroDB:
+            from .kyrodb.kyrodb import KyroDB
+
+            return KyroDB
 
         if self == DB.WeaviateCloud:
             from .weaviate_cloud.weaviate_cloud import WeaviateCloud
@@ -288,6 +294,11 @@ class DB(Enum):
 
             return QdrantLocalConfig
 
+        if self == DB.KyroDB:
+            from .kyrodb.config import KyroDBConfig
+
+            return KyroDBConfig
+
         if self == DB.WeaviateCloud:
             from .weaviate_cloud.config import WeaviateConfig
 
@@ -477,6 +488,11 @@ class DB(Enum):
             from .qdrant_local.config import QdrantLocalIndexConfig
 
             return QdrantLocalIndexConfig
+
+        if self == DB.KyroDB:
+            from .kyrodb.config import KyroDBIndexConfig
+
+            return KyroDBIndexConfig
 
         if self == DB.WeaviateCloud:
             from .weaviate_cloud.config import WeaviateIndexConfig

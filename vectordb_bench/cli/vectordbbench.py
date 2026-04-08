@@ -13,6 +13,7 @@ from ..backend.clients.elastic_cloud.cli import (
 )
 from ..backend.clients.endee.cli import Endee
 from ..backend.clients.hologres.cli import HologresHGraph
+from ..backend.clients.kyrodb.cli import KyroDB
 from ..backend.clients.lancedb.cli import LanceDB
 from ..backend.clients.lindorm.cli import LindormHNSW, LindormIVFBQ, LindormIVFPQ
 from ..backend.clients.mariadb.cli import MariaDBHNSW
@@ -68,6 +69,7 @@ cli.add_command(Clickhouse)
 cli.add_command(Vespa)
 cli.add_command(LanceDB)
 cli.add_command(HologresHGraph)
+cli.add_command(KyroDB)
 cli.add_command(QdrantCloud)
 cli.add_command(QdrantLocal)
 cli.add_command(ElasticCloudHNSW)
