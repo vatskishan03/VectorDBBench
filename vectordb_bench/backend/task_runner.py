@@ -134,6 +134,7 @@ class CaseRunner(BaseModel):
             db_case_config=self.config.db_case_config,
             drop_old=drop_old,
             with_scalar_labels=self.ca.with_scalar_labels,
+            **({"filter_type": self.ca.filters.type} if self.config.db == DB.KyroDB else {}),
             **({"collection_name": collection_name} if collection_name else {}),
         )
 

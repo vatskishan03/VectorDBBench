@@ -22,7 +22,7 @@ from vectordb_bench.backend.clients.kyrodb import kyrodb as kyrodb_module
 from vectordb_bench.backend.clients.kyrodb.cli import KyroDB as KyroDBCli
 from vectordb_bench.backend.clients.kyrodb.config import IngestRPC, KyroDBConfig, KyroDBIndexConfig
 from vectordb_bench.backend.clients.kyrodb.kyrodb import KyroDB
-from vectordb_bench.backend.filter import IntFilter, LabelFilter, non_filter
+from vectordb_bench.backend.filter import FilterOp, IntFilter, LabelFilter, non_filter
 from vectordb_bench.frontend.components.run_test.generateTasks import generate_tasks
 from vectordb_bench.frontend.config.dbCaseConfigs import get_case_config_inputs
 from vectordb_bench.models import CaseConfig, CaseConfigParamType
@@ -39,6 +39,7 @@ def build_client(
     *,
     ingest_rpc: IngestRPC = IngestRPC.BULK_LOAD_HNSW,
     namespace: str = "bench_ns",
+    filter_type: FilterOp = FilterOp.NonFilter,
 ) -> KyroDB:
     client = KyroDB.__new__(KyroDB)
     client.dim = 768
@@ -64,6 +65,7 @@ def build_client(
     client.collection_name = namespace
     client.namespace = namespace
     client.with_scalar_labels = True
+    client.filter_type = filter_type
     client.search_parameter = client.case_config.search_param()
     client._query_filter = None
     client._client = None
@@ -272,10 +274,8 @@ def test_insert_embeddings_bulk_load_uses_sdk_items_and_positive_wire_doc_ids():
     assert sdk_client.bulk_load_items is not None
     assert [item.doc_id for item in sdk_client.bulk_load_items] == [8, 9]
     assert all(item.namespace == "bench_ns" for item in sdk_client.bulk_load_items)
-    assert sdk_client.bulk_load_items[0].metadata["id"] == "7"
-    assert sdk_client.bulk_load_items[0].metadata["labels"] == "label_1p"
-    assert sdk_client.bulk_load_items[1].metadata["id"] == "8"
-    assert sdk_client.bulk_load_items[1].metadata["labels"] == "label_5p"
+    assert sdk_client.bulk_load_items[0].metadata == {}
+    assert sdk_client.bulk_load_items[1].metadata == {}
 
 
 def test_insert_embeddings_bulk_insert_uses_sdk_streaming_path():
@@ -292,8 +292,8 @@ def test_insert_embeddings_bulk_insert_uses_sdk_streaming_path():
     assert error is None
     assert sdk_client.bulk_insert_items is not None
     assert [item.doc_id for item in sdk_client.bulk_insert_items] == [1, 4]
-    assert sdk_client.bulk_insert_items[0].metadata["id"] == "0"
-    assert sdk_client.bulk_insert_items[1].metadata["id"] == "3"
+    assert sdk_client.bulk_insert_items[0].metadata == {}
+    assert sdk_client.bulk_insert_items[1].metadata == {}
 
 
 def test_insert_embeddings_unary_path_uses_positive_wire_ids():
@@ -310,8 +310,55 @@ def test_insert_embeddings_unary_path_uses_positive_wire_ids():
     assert error is None
     assert [call["doc_id"] for call in sdk_client.insert_calls] == [6, 7]
     assert all(call["namespace"] == "bench_ns" for call in sdk_client.insert_calls)
-    assert sdk_client.insert_calls[0]["metadata"]["id"] == "5"
-    assert sdk_client.insert_calls[1]["metadata"]["id"] == "6"
+    assert sdk_client.insert_calls[0]["metadata"] == {}
+    assert sdk_client.insert_calls[1]["metadata"] == {}
+
+
+def test_insert_embeddings_numeric_filter_cases_only_emit_id_metadata():
+    client = build_client(filter_type=FilterOp.NumGE)
+    sdk_client = BulkLoadClient()
+    client._client = sdk_client
+
+    inserted, error = client.insert_embeddings(
+        embeddings=[[0.1, 0.2], [0.3, 0.4]],
+        metadata=[7, 8],
+    )
+
+    assert inserted == 2
+    assert error is None
+    assert sdk_client.bulk_load_items is not None
+    assert sdk_client.bulk_load_items[0].metadata == {"id": "7"}
+    assert sdk_client.bulk_load_items[1].metadata == {"id": "8"}
+
+
+def test_insert_embeddings_label_filter_cases_only_emit_label_metadata():
+    client = build_client(filter_type=FilterOp.StrEqual)
+    sdk_client = BulkLoadClient()
+    client._client = sdk_client
+
+    inserted, error = client.insert_embeddings(
+        embeddings=[[0.1, 0.2], [0.3, 0.4]],
+        metadata=[7, 8],
+        labels_data=["label_1p", "label_5p"],
+    )
+
+    assert inserted == 2
+    assert error is None
+    assert sdk_client.bulk_load_items is not None
+    assert sdk_client.bulk_load_items[0].metadata == {"labels": "label_1p"}
+    assert sdk_client.bulk_load_items[1].metadata == {"labels": "label_5p"}
+
+
+def test_insert_embeddings_label_filter_cases_require_label_metadata():
+    client = build_client(filter_type=FilterOp.StrEqual)
+    client._client = BulkLoadClient()
+
+    with pytest.raises(ValueError, match="labels_data is required"):
+        client.insert_embeddings(
+            embeddings=[[0.1, 0.2]],
+            metadata=[7],
+            labels_data=None,
+        )
 
 
 def test_adapter_rejects_negative_benchmark_doc_ids():

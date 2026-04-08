@@ -53,6 +53,7 @@ class KyroDB(VectorDB):
         collection_name: str = "KyroDBCollection",
         drop_old: bool = False,
         with_scalar_labels: bool = False,
+        filter_type: FilterOp = FilterOp.NonFilter,
         **kwargs,
     ) -> None:
         self.dim = dim
@@ -61,6 +62,7 @@ class KyroDB(VectorDB):
         self.collection_name = collection_name
         self.namespace = collection_name
         self.with_scalar_labels = with_scalar_labels
+        self.filter_type = filter_type
         self.search_parameter = self.case_config.search_param()
         self._query_filter: MetadataFilter | None = None
         self._client: KyroDBClient | None = None
@@ -242,10 +244,10 @@ class KyroDB(VectorDB):
         labels_data: list[str] | None,
     ) -> Iterator[InsertItem]:
         for index, (embedding, benchmark_doc_id) in enumerate(zip(embeddings, metadata, strict=True)):
-            metadata_payload = {
-                self._ID_METADATA_FIELD: str(int(benchmark_doc_id)),
-            }
-            if labels_data is not None:
+            metadata_payload: dict[str, str] = {}
+            if self._needs_numeric_metadata():
+                metadata_payload[self._ID_METADATA_FIELD] = str(int(benchmark_doc_id))
+            if self._needs_label_metadata() and labels_data is not None:
                 metadata_payload[self._LABEL_METADATA_FIELD] = labels_data[index]
 
             yield InsertItem.from_parts(
@@ -267,8 +269,16 @@ class KyroDB(VectorDB):
         if labels_data is not None and len(labels_data) != len(metadata):
             msg = f"labels_data ({len(labels_data)}) and metadata ({len(metadata)}) length mismatch"
             raise ValueError(msg)
+        if self._needs_label_metadata() and labels_data is None:
+            raise ValueError("labels_data is required for KyroDB label-filter benchmark cases")
         for benchmark_doc_id in metadata:
             self._to_kyro_doc_id(int(benchmark_doc_id))
+
+    def _needs_numeric_metadata(self) -> bool:
+        return self.filter_type == FilterOp.NumGE
+
+    def _needs_label_metadata(self) -> bool:
+        return self.filter_type == FilterOp.StrEqual
 
     def _bulk_load_embeddings(
         self,
